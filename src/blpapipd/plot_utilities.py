@@ -3,8 +3,10 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.cbook as cbook
 import pandas as pd
+import plotly.express as px
 #import colormaps as cm
 import seaborn as sns
+
 
 
 from matplotlib.ticker import MaxNLocator
@@ -141,10 +143,10 @@ def two_plot(ts1, ts2, ttle, ts1_name="", ts2_name="",freq='AS-JAN',secondary_y=
 
     plt.legend(loc='upper right',prop={'size':10})
     plt.tight_layout(w_pad=0.5,h_pad=0.5)
-    plot_logo(ax,bottomLogo)
+    #plot_logo(ax,bottomLogo)
     plt.show()
 
-    return ax
+    return fig
 
 
 
@@ -153,6 +155,7 @@ def quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
 
     s_dt=ts.index[0]
     e_dt=ts.index[-1]
+    extent = min(len(ts),252)
     
     end_dt=e_dt+dt.timedelta(days=90)
     xtks=pd.date_range(start=s_dt,end=end_dt,freq=freq)
@@ -165,14 +168,14 @@ def quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
     pctile = 100*float(np.sum(ts < ts[-1]))/ts.shape[0]
 
     lvl_std = np.std(df[c_name])
-    std_1y  = np.std(df[c_name].tail(252))
+    std_1y  = np.std(df[c_name].tail(extent))
     df['+-1 zscore %0.1f %0.1f' % (ts.mean()-lvl_std, ts.mean()+lvl_std)] = ts.mean()-lvl_std
     df[''] = ts.mean()+lvl_std
     df['-0.5 zscore %0.1f' % (ts.mean()-0.5*lvl_std)] = ts.mean()-0.5*lvl_std
 
     ax=df.plot(figsize=(12,10),xticks=xtks.to_pydatetime(),color=['k','#ff7f00','.6','.6','.7'],lw=2)
     ymin,ymax = ax.get_ylim()
-    ax.set_ylim([ymin,ts.max()*1.15])
+    ax.set_ylim([ts.min()-abs(ts.mean()*.1),ts.max()+abs(ts.mean()*.1)])
     fig=ax.get_figure()
     fig.set_facecolor('whitesmoke')
     #ax.set_axis_bgcolor('gray')
@@ -187,9 +190,9 @@ def quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
     else:
         ret_std = np.std(df[c_name].diff())*np.sqrt(252)
 
-    largest_drop_in_1yr_window    =min((df[c_name].rolling(252).min()-df[c_name].rolling(252).max()).dropna())
-    largest_neg_ret_in_1yr_window =min((df[c_name].rolling(252).min()/df[c_name].rolling(252).max()-1).dropna())
-
+    largest_drop_in_1yr_window    =min((df[c_name].rolling(extent).min()-df[c_name].rolling(extent).max()).dropna())
+    largest_neg_ret_in_1yr_window =min((df[c_name].rolling(extent).min()/df[c_name].rolling(extent).max()-1).dropna())
+        
     if(bands):
         if(ln_std):
             ax.fill_between(ts.index,last[0]*np.exp(-ret_std),last[0]*np.exp(ret_std),facecolor='grey',alpha=0.1)
@@ -214,9 +217,9 @@ def quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
     plt.grid(True,color='.6')
 
     if(ln_std):
-        ax.set_xlabel('Prospective 3sigma (std.lnr) [ -3s: %.2f, +3s: %.2f, return std (ln).: %.1f, min(ts.min(252)/ts.max(252)-1): %.2f]' % (last*np.exp(-3*ret_std),last*np.exp(3*ret_std),100*ret_std,largest_neg_ret_in_1yr_window))
+        ax.set_xlabel('Prospective 2sigma (std.lnr) [ -2s: %.2f, +2s: %.2f, return std (ln).: %.1f, min(ts.min(252)/ts.max(252)-1): %.2f]' % (last*np.exp(-2*ret_std),last*np.exp(2*ret_std),100*ret_std,largest_neg_ret_in_1yr_window))
     else:
-        ax.set_xlabel('Prospective 3sigma (std.nd) [ -3s: %.2f, +3s: %.2f, return std (norm).: %.1f,min(ts.min(252)-ts.max(252)): %.1f]' % (last-3*ret_std,last+3*ret_std,ret_std,largest_drop_in_1yr_window))
+        ax.set_xlabel('Prospective 2sigma (std.nd) [ -2s: %.2f, +2s: %.2f, return std (norm).: %.1f,min(ts.min(252)-ts.max(252)): %.1f]' % (last-2*ret_std,last+2*ret_std,ret_std,largest_drop_in_1yr_window))
     
     #plt.xlabel(' 3Sig Range [ %s : %s ] --  1sig = %s ' % (ng_wgt,cl_wgt,l.currency(last-3*nrml_ret_std,grouping=True), l.currency(last+3*nrml_ret_std,grouping=True),l.currency(nrml_ret_std,grouping=True)))
     plt.tight_layout(w_pad=1.,h_pad=1.)
@@ -224,8 +227,86 @@ def quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
     #plot_logo(ax,bottomLogo)
     plt.legend(loc='upper right',prop={'size':10})
     plt.show()
-    return ax
+    return fig
 
+def px_quick_plot(ts,c_name,ln_std=True,bands=True,freq='AS-JAN',bottomLogo=False):
+    month_d={1:'Jan', 2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}
+
+    s_dt=ts.index[0]
+    e_dt=ts.index[-1]
+    extent = min(len(ts),252)
+    
+    end_dt=e_dt+dt.timedelta(days=90)
+    xtks=pd.date_range(start=s_dt,end=end_dt,freq=freq)
+    df=pd.DataFrame(ts.values,index=ts.index,columns=[c_name])
+    df['mean']= ts.mean()
+#    df['max'] = ts.max()
+#    df['min'] = ts.min()
+    last=df[c_name].tail(1)
+
+    pctile = 100*float(np.sum(ts < ts[-1]))/ts.shape[0]
+
+    lvl_std = np.std(df[c_name])
+    std_1y  = np.std(df[c_name].tail(extent))
+    df['+-1 zscore %0.1f %0.1f' % (ts.mean()-lvl_std, ts.mean()+lvl_std)] = ts.mean()-lvl_std
+    df[''] = ts.mean()+lvl_std
+    df['-0.5 zscore %0.1f' % (ts.mean()-0.5*lvl_std)] = ts.mean()-0.5*lvl_std
+
+    fig=px.line(ts,height=15,width=20) #xticks=xtks.to_pydatetime()
+    #ymin,ymax = ax.get_ylim()
+    #ax.set_ylim([ts.min()-abs(ts.mean()*.1),ts.max()+abs(ts.mean()*.1)])
+    #fig=ax.get_figure()
+    #fig.set_facecolor('whitesmoke')
+    #ax.set_axis_bgcolor('gray')
+    
+    
+#    df_stub=pd.DataFrame(last[0]*np.exp(ret_std),index=pd.date_range(e_dt,end_dt),columns={'+-1 rstd'})
+#    df_stub.plot(ax=ax)
+
+    #should check that data is given in daily frequency
+    if(ln_std):
+        ret_std = np.std(np.log((df[c_name].pct_change()+1)))*np.sqrt(252)
+    else:
+        ret_std = np.std(df[c_name].diff())*np.sqrt(252)
+
+    largest_drop_in_1yr_window    =min((df[c_name].rolling(extent).min()-df[c_name].rolling(extent).max()).dropna())
+    largest_neg_ret_in_1yr_window =min((df[c_name].rolling(extent).min()/df[c_name].rolling(extent).max()-1).dropna())
+        
+    #if(bands):
+    #    if(ln_std):
+    #        ax.fill_between(ts.index,last[0]*np.exp(-ret_std),last[0]*np.exp(ret_std),facecolor='grey',alpha=0.1)
+    #    else:
+    #        ax.fill_between(ts.index,last[0]-ret_std,last[0]+ret_std,facecolor='grey',alpha=0.1)
+                
+    #ax.set_xticklabels(['%s\n%d' % (month_d[x.month], x.year) for x in xtks])
+                                            
+    #plt.plot(last.index[0].strftime('%m/%d/%y'),last[0],'ro',markersize=10)
+    #plt.plot(last.index[0],last[0],'ro',markersize=10)
+    #same_as_last = ts[ts < ts[-1]].tail(1)
+
+    #plt.plot(same_as_last.index[0],same_as_last[0],'go',markersize=10)    
+    #plt.plot(last.index[0],last[0],'ro',markersize=10)
+
+    
+    font = FontProperties()
+    font.set_family('cursive')
+    font.set_style('italic')
+    #plt.title(c_name + ' [ Retro. Stats -- last:%.2f  max:%.2f  min:%.2f  mean:%.2f  lvl std (1y,all):%.1f,%.1f  %%-ile:%.1f  Z:%.2f]' % (last,ts.max(),ts.min(),ts.mean(),std_1y,lvl_std, pctile,(ts.tail(1)[0]-ts.mean())/ts.std()),size=12,fontproperties=font)
+
+    #plt.grid(True,color='.6')
+
+##    if(ln_std):
+##        fig.set_xlabel('Prospective 2sigma (std.lnr) [ -2s: %.2f, +2s: %.2f, return std (ln).: %.1f, min(ts.min(252)/ts.max(252)-1): %.2f]' % (last*np.exp(-2*ret_std),last*np.exp(2*ret_std),100*ret_std,largest_neg_ret_in_1yr_window))
+##    else:
+##        ax.set_xlabel('Prospective 2sigma (std.nd) [ -2s: %.2f, +2s: %.2f, return std (norm).: %.1f,min(ts.min(252)-ts.max(252)): %.1f]' % (last-2*ret_std,last+2*ret_std,ret_std,largest_drop_in_1yr_window))
+    
+    #plt.xlabel(' 3Sig Range [ %s : %s ] --  1sig = %s ' % (ng_wgt,cl_wgt,l.currency(last-3*nrml_ret_std,grouping=True), l.currency(last+3*nrml_ret_std,grouping=True),l.currency(nrml_ret_std,grouping=True)))
+    #plt.tight_layout(w_pad=1.,h_pad=1.)
+        
+    #plot_logo(ax,bottomLogo)
+    #plt.legend(loc='upper right',prop={'size':10})
+    #plt.show()
+    return fig
 
 def seasonal_plot(ts,ttle="",normalize=True,average=False,bottomLogo=False):
 
@@ -269,8 +350,8 @@ def seasonal_plot(ts,ttle="",normalize=True,average=False,bottomLogo=False):
     plt.legend(loc='upper right',prop={'size':10})
     plt.tight_layout(w_pad=0.5,h_pad=0.5)
     #plot_logo(ax,bottomLogo)
-    plt.show()
-    return ax
+    #plt.show()
+    return ax.gcf()
     
                 
 def plot_logo(ax, bottomLogo=False):

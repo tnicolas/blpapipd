@@ -5,6 +5,7 @@ import blpapi
 import datetime
 import pandas as pd
 import time as t
+import os
 
 global rec_cnt
 rec_cnt=0
@@ -88,19 +89,18 @@ def getTimeSeries(session, ticker, fld, sd=[], ed=[], prd="DAILY",cache_override
        ed=int(datetime.datetime.now().strftime('%Y%m%d'))
    
    filename=ticker+' '+ fld+(' %d %d '%(sd,ed))+prd
-   try:
+   if os.path.isfile('%s%s' % (store_path,filename)):
        if cache_override:
            raise ""
-        
        return_ts = pd.read_pickle('%s%s' % (store_path,filename))
        print("Cache "+filename+" exists.  Loading.")
        return return_ts
     
-   except:
+   else:
        if cache_override:
            print('Retrieving live quote %s, cache_override=True' % (ticker))
        else:
-           print(filename+" did not load...creating cache.")
+           print(filename+" does not exist...creating cache.")
           
        refDataService = session.getService("//blp/refdata")
        #end of openSession
@@ -118,8 +118,8 @@ def getTimeSeries(session, ticker, fld, sd=[], ed=[], prd="DAILY",cache_override
         
        request.set("periodicityAdjustment", "ACTUAL")
        request.set("periodicitySelection", prd)
-       request.set("startDate",sd)
-       request.set("endDate", ed)
+       request.set("startDate",int(sd))
+       request.set("endDate", int(ed))
        request.set("maxDataPoints", 50000)
 
        #print "sending request"
