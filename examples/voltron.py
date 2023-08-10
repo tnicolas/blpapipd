@@ -275,7 +275,7 @@ if True:
     v_r.append(vtron_item(u='CL1 Comdty',fld='PX_LAST',u_sigma=7,   ivol='24MTH_IMPVOL_100.0%MNY_DF', ivol_sigma=7))
 
     v_r.append(vtron_item(u='CO1 Comdty',fld='PX_LAST',u_sigma=7,   ivol='12MTH_IMPVOL_100.0%MNY_DF', ivol_sigma=7))    
-    v_r.append(vtron_item(u='NG1 Comdty',fld='PX_LAST',u_sigma=7,   ivol='12MTH_IMPVOL_100.0%MNY_DF', ivol_sigma=7))    
+#    v_r.append(vtron_item(u='NG1 Comdty',fld='PX_LAST',u_sigma=7,   ivol='12MTH_IMPVOL_100.0%MNY_DF', ivol_sigma=7))    
                 
     #softs        
     v_r.append(vtron_item(u='S 1 Comdty',fld='PX_LAST',u_sigma=7,   ivol='12MTH_IMPVOL_100.0%MNY_DF', ivol_sigma=7))    
